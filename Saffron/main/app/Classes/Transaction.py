@@ -3,8 +3,8 @@ class Transaction:
   def __init__(self, ticker, transaction_type, quantity, price, transaction_date="2020"):
     self.ticker = ticker
     self.type = transaction_type
-    self.quantity = int(quantity)
-    self.price = int(price)
+    self.quantity = float(quantity)
+    self.price = float(price)
     self.date = transaction_date
 
   def __str__(self):

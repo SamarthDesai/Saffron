@@ -105,6 +105,7 @@ def getRHData():
           filled_transaction_split = filled_transaction.split(" ")
           quantity = filled_transaction_split[0]
           price = filled_transaction_split[3]
+          price = price.split("$")[1]
           total_value_node = info_children[17]
           total_value = total_value_node.get_attribute('textContent')
           transactionTuple = (ticker_symbol, transaction_type_final, quantity, price, transaction_date)
