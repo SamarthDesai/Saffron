@@ -55,13 +55,14 @@ def getNetGains(transaction_arr, current_price):
 
 
 def getFIFOGains(transaction_arr, current_price):
+
   bought_shares_queue = deque()
   gain = float(0)
   quantity_shares_remaining = 0
 
   for transaction in transaction_arr:
-    if transaction.type == "buy":
-      cost_basis_buy = CostBasisPosition(transaction.price, transaction.quantity, 1) #TODO, FIX TRANSACTION DATE from 1
+    if transaction.type == "Buy":
+      cost_basis_buy = CostBasisPosition(transaction.price, transaction.quantity, transaction.date) #TODO, FIX TRANSACTION DATE from 1
       bought_shares_queue.append(cost_basis_buy)
       quantity_shares_remaining += transaction.quantity
     else:
