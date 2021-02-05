@@ -3,11 +3,18 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+import os
 import time
+import pickle
 
 LOGIN_PAGE = "Login"
 HISTORY_PAGE = "History"
 PORTFOLIO_PAGE = "Portfolio"
+MFA_PAGE = "MFA"
+
+COOKIES_PATH_PREFIX = "../Data/"
+COOKIES_PATH_SUFFIX = "_cookies.txt"
 
 transaction_types = {
   "SELL": "Sell",
@@ -41,21 +48,25 @@ class AnyEc:
 
 def getRHData():
 
-  driver = navigateToRobinhood()
-  currentPage = checkCurrentPage(driver)
-  index = 1
-  while currentPage != HISTORY_PAGE:
-    print(currentPage, index)
+  driver, saffronUsername = createSession()
 
+  navigateToRobinhood(driver)
+
+  currentPage = checkCurrentPage(driver)
+
+  while currentPage != HISTORY_PAGE:
+    print(currentPage)
     if (currentPage == LOGIN_PAGE):
       enterUserCredentials(driver)
-      enterMFA(driver)
       letNonLoginPageLoad(driver)
+
+    if (currentPage == MFA_PAGE):
+      enterMFA(driver)
+      letNonMFAPageLoad(driver)
 
     if (currentPage == PORTFOLIO_PAGE):
       navigateToHistoryPage(driver)
 
-    index += 1
     currentPage = checkCurrentPage(driver)
 
   #at this point you should be at the history page
@@ -67,6 +78,8 @@ def getRHData():
   
   transaction_arr = parseTransactions(driver, transactions)
       
+  endSession(driver, saffronUsername)
+
   return transaction_arr
 
 
@@ -75,17 +88,97 @@ def getRHData():
 
   #driver.close()
 
-def navigateToRobinhood():
+def createSession():
+  username = input("Please enter your Saffron username: ")
+
   driver = webdriver.Chrome()
+  driver.get("https://robinhood.com/account/history")
 
-  driver.get("https://www.robinhood.com/account/history")
+  fileName = COOKIES_PATH_PREFIX + username.rstrip() + COOKIES_PATH_SUFFIX
+  
+  fileDir = os.path.dirname(os.path.realpath(__file__))
+  filePath = os.path.join(fileDir, fileName)
+  filePath = os.path.abspath(os.path.realpath(filePath))
 
+  try:
+    cookieFile = open(filePath)
+    loadCookies(driver, filePath)
+  except: #TODO: catch specific exceptions here
+    pass 
+  
+  print(len(driver.get_cookies()), " is len of loaded cookies--------------------------->")
+  for cookie in driver.get_cookies():
+    print(cookie)
+  return (driver, username)
+
+
+def endSession(driver, username):
+  fileName = COOKIES_PATH_PREFIX + username.rstrip() + COOKIES_PATH_SUFFIX
+  
+  fileDir = os.path.dirname(os.path.realpath(__file__))
+  filePath = os.path.join(fileDir, fileName)
+  filePath = os.path.abspath(os.path.realpath(filePath))
+
+  open(filePath, "w").close() #creates file if doesn't exist, clears contents if it does
+  saveCookies(driver, filePath)
+  driver.quit()
+  #driver.close() TODO: might be worth testing out if quit or close is better
+
+
+def saveCookies(driver, filePath):
+    with open(filePath, 'wb') as filehandler:
+        cookies = driver.get_cookies()
+        pickle.dump(cookies, filehandler)
+        for c in cookies:
+          print(c)
+
+
+def loadCookies(driver, filePath):
+  with open(filePath, 'rb') as cookiesfile:
+      cookies = pickle.load(cookiesfile)
+      rightDomain = '.robinhood.com'
+      
+      print(len(cookies), " is the length of saved cookies------------------------------>")
+      for cookie in cookies:
+        if cookie['domain'] == 'robinhood.com':
+          print("Old cookie: ", cookie)
+          newCookie = {
+            'expiry': cookie['expiry'],
+            'httpOnly': cookie['httpOnly'],
+            'name': cookie['name'],
+            'path': cookie['path'],
+            'secure': cookie['secure'],
+            'value': cookie['value']
+          }
+          print("New cookie: ", newCookie)
+          driver.add_cookie(newCookie)
+          continue
+
+        driver.add_cookie(cookie)
+
+def navigateToRobinhood(driver):
+  cookies = driver.get_cookies()
+  print("THESE ARE COOKIES BEFORE LOGIN LOADS--------------->>>>>")
+  for cookie in cookies:
+    print(cookie)
+
+  driver.get("https://robinhood.com/account/history")
+  print("THESE ARE COOKIES BETWEEN LOGIN LOADS--------------->>>>>")
+  cookies = driver.get_cookies()
+  for cookie in cookies:
+    print(cookie)
   #need to surround this in try-catch in case we navigate to wrong page and we get a timeout exception
+  '''
   WebDriverWait(driver, 20).until(AnyEc(
       EC.presence_of_element_located((By.CLASS_NAME, "css-19gyy64")),
       EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad"))
       )
   )
+  '''
+  cookies = driver.get_cookies()
+  print("THESE ARE COOKIES AFTER LOGIN LOADS--------------->>>>>")
+  for cookie in cookies:
+    print(cookie)
   return driver
 
 def letPageLoad(driver):
@@ -100,10 +193,18 @@ def letNonLoginPageLoad(driver):
   print("lets non login page load")
   WebDriverWait(driver, 20).until(AnyEc(
       EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
+      EC.title_contains("Portfolio"),
+      #EC.presence_of_element_located((By.CLASS_NAME, "_2GHn41jUsfSSC9HmVWT-eg")),
+      EC.element_to_be_clickable((By.XPATH, "//div[@class='css-0']/button[1]"))
+      )
+  )
+
+def letNonMFAPageLoad(driver):
+  WebDriverWait(driver, 20).until(AnyEc(
+      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
       EC.title_contains("Portfolio")
       )
   )
-  print(checkCurrentPage(driver), " is the new page after login")
 
 
 def checkCurrentPage(driver):
@@ -112,17 +213,20 @@ def checkCurrentPage(driver):
 
   loginPageCheck = driver.find_elements_by_class_name("css-19gyy64")
   historyPageCheck = driver.find_elements_by_class_name("rh-expandable-item-a32bb9ad")
+  mfaPage = driver.find_elements_by_class_name("_2GHn41jUsfSSC9HmVWT-eg")
   if loginPageCheck:
     return LOGIN_PAGE
   if historyPageCheck:
     return HISTORY_PAGE
+  if mfaPage:
+    return MFA_PAGE
   return PORTFOLIO_PAGE
 
 
 def enterUserCredentials(driver):
-  username_input = input("Please enter your username: ")
+  username_input = input("Please enter your Robinhood username: ")
 
-  password_input = input("Please enter your password: ")
+  password_input = input("Please enter your Robinhood password: ")
 
   if username_input and password_input:
 
@@ -136,13 +240,14 @@ def enterUserCredentials(driver):
 
     driver.find_element_by_class_name("css-1l2vicc").click()
 
-  WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='css-0']/button[1]")))
+  #WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='css-0']/button[1]")))
 
-  driver.find_element_by_class_name("css-1l2vicc").click()
+  #driver.find_element_by_class_name("css-1l2vicc").click()
 
 
 
 def enterMFA(driver):
+  driver.find_element_by_class_name("css-1l2vicc").click()
   verification_code = input("Please input your 6 digit verification code: ")
 
   if verification_code:
@@ -238,5 +343,4 @@ def parseTransactions(driver, transactions):
       
   return transaction_arr
 
-x = getRHData()
 

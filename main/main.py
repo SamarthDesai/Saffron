@@ -17,6 +17,7 @@ for stock in transactions.keys():
 transactions_store = ts.TransactionStore()
 transactions_arr = scraper.getRHData()
 
+'''
 for i in range(50):
   print("\n")
 
@@ -30,7 +31,7 @@ for stock in transactions_store.transactions_dict.keys():
   #print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[3]}")
   arr = gains.getGains(transactions_store.transactions_dict[stock], 1000)
   print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
-
+'''
 
 
 
