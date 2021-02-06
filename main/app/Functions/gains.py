@@ -65,12 +65,14 @@ def getFIFOGains(transaction_arr, current_price):
       cost_basis_buy = CostBasisPosition(transaction.price, transaction.quantity, transaction.date) #TODO, FIX TRANSACTION DATE from 1
       bought_shares_queue.append(cost_basis_buy)
       quantity_shares_remaining += transaction.quantity
-    else:
+    elif transaction.type == "Sell":
       sell_price = transaction.price
       sell_quantity = transaction.quantity
       partial_gain = determineFIFOGain(bought_shares_queue, sell_price, sell_quantity)
       gain += partial_gain
       quantity_shares_remaining -= sell_quantity
+    elif transaction.type == "Dividend":
+      gain += transaction.total_value
 
   unrealized_gains = determineFIFOGain(bought_shares_queue, current_price, quantity_shares_remaining)
 
@@ -93,7 +95,7 @@ def determineFIFOGain(held_shares_queue, sell_price, sell_quantity):
       #more bought shares than sold
       sold_shares_quantity = sell_quantity
       partial_gain = (sell_price - oldest_shares.price)*sold_shares_quantity
-      sell_quantity -= sold_shares_quantity
+      sell_quantity = 0
       gain += partial_gain
       oldest_shares.quantity -= sold_shares_quantity
       held_shares_queue.appendleft(oldest_shares)

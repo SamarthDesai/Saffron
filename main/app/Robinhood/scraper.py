@@ -7,7 +7,12 @@ from selenium.webdriver.chrome.options import Options
 from getpass import getpass
 import os
 import time
+from datetime import datetime
+import locale
 import pickle
+
+locale.setlocale(locale.LC_NUMERIC, 'us')
+
 
 LOGIN_PAGE = "Login"
 HISTORY_PAGE = "History"
@@ -18,12 +23,13 @@ COOKIES_PATH_PREFIX = "../Data/"
 COOKIES_PATH_SUFFIX = "_cookies.txt"
 
 transaction_types = {
-  "SELL": "Sell",
-  "BUY": "Buy",
-  "DIVIDEND": "Dividend",
-  "CANCELED": "Canceled"
+    "MARKET_SELL": "Market Sell",
+    "MARKET_BUY": "Market Buy",
+    "LIMIT_SELL": "Limit Sell",
+    "LIMIT_BUY": "Limit Buy",
+    "DIVIDEND": "Dividend",
+    "CANCELED": "Canceled"
 }
-
 
 
 section_types = {
@@ -139,6 +145,7 @@ def loadCookies(driver, filePath):
         driver.add_cookie(cookie)
 
 
+
 def navigateToRobinhood(driver):
 
   driver.get("https://robinhood.com/account/history")
@@ -208,6 +215,7 @@ def enterUserCredentials(driver):
 
 
 
+
 def enterMFA(driver):
   driver.find_element_by_class_name("css-1l2vicc").click()
   verification_code = input("Please input your 6 digit verification code: ")
@@ -224,9 +232,9 @@ def enterMFA(driver):
 def navigateToHistoryPage(driver):
   driver.get("https://www.robinhood.com/account/history")
 
-  WebDriverWait(driver, 20).until(EC.title_contains("Account"))
+  WebDriverWait(driver, 50).until(EC.title_contains("Account"))
 
-  WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")))
+  WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")))
 
 
 
@@ -267,24 +275,99 @@ def gatherTransactions(driver):
   return transactions
 
 
-
 def parseTransactions(driver, transactions):
   transaction_arr = []
+  company_name_dict = {}
+
+  transactions_with_dates = []
 
   for transaction in transactions:
 
     header_text = transaction.find_element_by_xpath(".//div[@class='_2VPzNpwfga_8Mcn-DCUwug']").text
+    canceled_text = transaction.find_element_by_xpath(".//div[@class='_22YwnO0XVSevsIC6rD9HS3']").text
+
+    if transaction_types["CANCELED"] in canceled_text:
+      continue
+
+    if transaction_types["LIMIT_SELL"] in header_text or transaction_types["LIMIT_BUY"] in header_text or transaction_types["MARKET_SELL"] in header_text or transaction_types["MARKET_BUY"] in header_text:
+
+      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+
+      date_node = info_children[7]
+      date = date_node.get_attribute('textContent')
+
+      transaction_with_date = (transaction, date)
+      transactions_with_dates.append(transaction_with_date)
+
+    elif transaction_types["DIVIDEND"] in header_text:
+
+      date_node = transaction.find_elements_by_xpath(".//span[@class='css-zy0xqa']")[1]
+      date = date_node.get_attribute('textContent')
+
+      transaction_with_date = (transaction, date)
+      transactions_with_dates.append(transaction_with_date)
+
+  transactions_with_dates.sort(key = lambda date: datetime.strptime(date[1], '%b %d, %Y'))
+
+  for transaction_with_date in transactions_with_dates:
+
+    transaction = transaction_with_date[0]
+
+    header_text = transaction.find_element_by_xpath(".//div[@class='_2VPzNpwfga_8Mcn-DCUwug']").text
 
     canceled_text = transaction.find_element_by_xpath(".//div[@class='_22YwnO0XVSevsIC6rD9HS3']").text
+
+    company_name_title = header_text.split("\n")
+
+    company_name_list = company_name_title[0].split(" ")
+
+    print(company_name_list)
     
     if transaction_types["CANCELED"] in canceled_text:
       continue
 
-    if transaction_types["SELL"] in header_text or transaction_types["BUY"] in header_text:
+
+    if transaction_types["LIMIT_SELL"] in header_text or transaction_types["LIMIT_BUY"] in header_text:
+
+      company_name = " ".join(company_name_list[:-2])
+
 
       info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
       ticker_symbol_node = info_children[1]
       ticker_symbol = ticker_symbol_node.find_element_by_xpath(".//a").get_attribute('textContent')
+
+      if company_name not in company_name_dict.keys():
+        company_name_dict[company_name] = ticker_symbol
+
+      transaction_type_node = info_children[3]
+      transaction_type = transaction_type_node.find_element_by_xpath(".//span").get_attribute('textContent')
+      transaction_type_split = transaction_type.split(" ")
+      transaction_type_final = transaction_type_split[1]
+      transaction_date_node = info_children[7]
+      transaction_date = transaction_date_node.get_attribute('textContent')
+      filled_transaction_node = info_children[17]
+      filled_transaction = filled_transaction_node.get_attribute('textContent')
+      filled_transaction_split = filled_transaction.split(" ")
+      quantity = filled_transaction_split[0]
+      price = filled_transaction_split[3]
+      price = locale.atof(price.split("$")[1])
+      total_value_node = info_children[19]
+      total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
+      transaction_tuple = (ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+      transaction_arr.insert(0, transaction_tuple)
+      continue
+
+    if transaction_types["MARKET_SELL"] in header_text or transaction_types["MARKET_BUY"] in header_text:
+
+      company_name = " ".join(company_name_list[:-2])
+
+      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+      ticker_symbol_node = info_children[1]
+      ticker_symbol = ticker_symbol_node.find_element_by_xpath(".//a").get_attribute('textContent')
+
+      if company_name not in company_name_dict.keys():
+        company_name_dict[company_name] = ticker_symbol
+
       transaction_type_node = info_children[3]
       transaction_type = transaction_type_node.find_element_by_xpath(".//span").get_attribute('textContent')
       transaction_type_split = transaction_type.split(" ")
@@ -293,16 +376,38 @@ def parseTransactions(driver, transactions):
       transaction_date = transaction_date_node.get_attribute('textContent')
       filled_transaction_node = info_children[15]
       filled_transaction = filled_transaction_node.get_attribute('textContent')
-      print(filled_transaction)
       filled_transaction_split = filled_transaction.split(" ")
       quantity = filled_transaction_split[0]
       price = filled_transaction_split[3]
-      price = price.split("$")[1]
+      price = locale.atof(price.split("$")[1])
       total_value_node = info_children[17]
-      total_value = total_value_node.get_attribute('textContent')
-      transactionTuple = (ticker_symbol, transaction_type_final, quantity, price, transaction_date)
-      transaction_arr.insert(0, transactionTuple)
-      
+      total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
+      transaction_tuple = (ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+      transaction_arr.insert(0, transaction_tuple)
+      continue
+
+    if transaction_types["DIVIDEND"] in header_text:
+
+      company_name = " ".join(company_name_list[2:])
+
+      ticker_symbol = company_name_dict[company_name]
+
+      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+
+      transaction_type = "Dividend"
+      transaction_date_node = transaction.find_elements_by_xpath(".//span[@class='css-zy0xqa']")[1]
+      transaction_date = transaction_date_node.get_attribute('textContent')
+
+      quantity = info_children[1].get_attribute('textContent')
+
+      price = locale.atof(info_children[3].get_attribute('textContent').split("$")[1])
+
+      total_value = locale.atof(info_children[5].get_attribute('textContent').split("$")[1])
+
+      transaction_tuple = (ticker_symbol, transaction_type, quantity, price, total_value, transaction_date)
+      transaction_arr.insert(0, transaction_tuple)
+
   return transaction_arr
+
 
 
