@@ -93,7 +93,7 @@ def createSession():
   username = input("Please enter your Saffron username: ")
 
   driver = webdriver.Chrome()
-  driver.get("https://robinhood.com/account/history")
+  navigateToRobinhood(driver)
 
   fileName = COOKIES_PATH_PREFIX + username.rstrip() + COOKIES_PATH_SUFFIX
   
@@ -107,9 +107,7 @@ def createSession():
   except: #TODO: catch specific exceptions here
     pass 
   
-  print(len(driver.get_cookies()), " is len of loaded cookies--------------------------->")
-  for cookie in driver.get_cookies():
-    print(cookie)
+
   return (driver, username)
 
 
@@ -130,63 +128,28 @@ def saveCookies(driver, filePath):
     with open(filePath, 'wb') as filehandler:
         cookies = driver.get_cookies()
         pickle.dump(cookies, filehandler)
-        for c in cookies:
-          print(c)
+
 
 
 def loadCookies(driver, filePath):
   with open(filePath, 'rb') as cookiesfile:
       cookies = pickle.load(cookiesfile)
-      rightDomain = '.robinhood.com'
       
-      print(len(cookies), " is the length of saved cookies------------------------------>")
       for cookie in cookies:
-        if cookie['domain'] == 'robinhood.com':
-          print("Old cookie: ", cookie)
-          newCookie = {
-            'expiry': cookie['expiry'],
-            'httpOnly': cookie['httpOnly'],
-            'name': cookie['name'],
-            'path': cookie['path'],
-            'secure': cookie['secure'],
-            'value': cookie['value']
-          }
-          print("New cookie: ", newCookie)
-          driver.add_cookie(newCookie)
-          continue
-
         driver.add_cookie(cookie)
 
+
 def navigateToRobinhood(driver):
-  cookies = driver.get_cookies()
-  print("THESE ARE COOKIES BEFORE LOGIN LOADS--------------->>>>>")
-  for cookie in cookies:
-    print(cookie)
 
   driver.get("https://robinhood.com/account/history")
-  print("THESE ARE COOKIES BETWEEN LOGIN LOADS--------------->>>>>")
-  cookies = driver.get_cookies()
-  for cookie in cookies:
-    print(cookie)
-  #need to surround this in try-catch in case we navigate to wrong page and we get a timeout exception
-  '''
-  WebDriverWait(driver, 20).until(AnyEc(
-      EC.presence_of_element_located((By.CLASS_NAME, "css-19gyy64")),
-      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad"))
-      )
-  )
-  '''
-  cookies = driver.get_cookies()
-  print("THESE ARE COOKIES AFTER LOGIN LOADS--------------->>>>>")
-  for cookie in cookies:
-    print(cookie)
-  return driver
+
 
 def letPageLoad(driver):
   WebDriverWait(driver, 20).until(AnyEc(
-      EC.presence_of_element_located((By.CLASS_NAME, "css-19gyy64")),
+      EC.presence_of_element_located((By.CLASS_NAME, "css-16758fh")),
       EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
-      EC.title_contains("Portfolio")
+      EC.title_contains("Portfolio"),
+      EC.presence_of_element_located((By.CLASS_NAME, "css-1upilqn"))
       )
   )
 
@@ -195,8 +158,7 @@ def letNonLoginPageLoad(driver):
   WebDriverWait(driver, 20).until(AnyEc(
       EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
       EC.title_contains("Portfolio"),
-      #EC.presence_of_element_located((By.CLASS_NAME, "_2GHn41jUsfSSC9HmVWT-eg")),
-      EC.element_to_be_clickable((By.XPATH, "//div[@class='css-0']/button[1]"))
+      EC.presence_of_element_located((By.CLASS_NAME, "css-1upilqn")),
       )
   )
 
@@ -210,16 +172,15 @@ def letNonMFAPageLoad(driver):
 
 def checkCurrentPage(driver):
   letPageLoad(driver)
-  pageValue = ""
 
-  loginPageCheck = driver.find_elements_by_class_name("css-19gyy64")
+  loginPageCheck = driver.find_elements_by_class_name("css-16758fh")
   historyPageCheck = driver.find_elements_by_class_name("rh-expandable-item-a32bb9ad")
-  mfaPage = driver.find_elements_by_class_name("_2GHn41jUsfSSC9HmVWT-eg")
+  mfaPageCheck = driver.find_elements_by_class_name("css-1upilqn")
   if loginPageCheck:
     return LOGIN_PAGE
   if historyPageCheck:
     return HISTORY_PAGE
-  if mfaPage:
+  if mfaPageCheck:
     return MFA_PAGE
   return PORTFOLIO_PAGE
 
