@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from getpass import getpass
 import os
 import time
 import pickle
@@ -226,7 +227,7 @@ def checkCurrentPage(driver):
 def enterUserCredentials(driver):
   username_input = input("Please enter your Robinhood username: ")
 
-  password_input = input("Please enter your Robinhood password: ")
+  password_input = getpass("Please enter your Robinhood password: ")
 
   if username_input and password_input:
 
