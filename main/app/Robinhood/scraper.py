@@ -10,8 +10,9 @@ import time
 from datetime import datetime
 import locale
 import pickle
+import platform
 
-locale.setlocale(locale.LC_NUMERIC, 'us')
+
 
 
 LOGIN_PAGE = "Login"
@@ -54,6 +55,7 @@ class AnyEc:
 
 
 def getRHData():
+
 
   driver, saffronUsername = createSession()
 
@@ -276,6 +278,11 @@ def gatherTransactions(driver):
 
 
 def parseTransactions(driver, transactions):
+  if platform.system() == 'Darwin':
+    locale.setlocale(locale.LC_NUMERIC, "EN_US")
+  else:
+    locale.setlocale(locale.LC_NUMERIC, "")
+
   transaction_arr = []
   company_name_dict = {}
 
@@ -354,7 +361,7 @@ def parseTransactions(driver, transactions):
       total_value_node = info_children[19]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
       transaction_tuple = (ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
-      transaction_arr.insert(0, transaction_tuple)
+      transaction_arr.append(transaction_tuple)
       continue
 
     if transaction_types["MARKET_SELL"] in header_text or transaction_types["MARKET_BUY"] in header_text:
@@ -383,7 +390,7 @@ def parseTransactions(driver, transactions):
       total_value_node = info_children[17]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
       transaction_tuple = (ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
-      transaction_arr.insert(0, transaction_tuple)
+      transaction_arr.append(transaction_tuple)
       continue
 
     if transaction_types["DIVIDEND"] in header_text:
@@ -405,7 +412,7 @@ def parseTransactions(driver, transactions):
       total_value = locale.atof(info_children[5].get_attribute('textContent').split("$")[1])
 
       transaction_tuple = (ticker_symbol, transaction_type, quantity, price, total_value, transaction_date)
-      transaction_arr.insert(0, transaction_tuple)
+      transaction_arr.append(transaction_tuple)
 
   return transaction_arr
 
