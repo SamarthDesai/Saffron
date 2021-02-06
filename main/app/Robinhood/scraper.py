@@ -3,23 +3,199 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from getpass import getpass
+import os
 import time
 from datetime import datetime
 import locale
+import pickle
 
 locale.setlocale(locale.LC_NUMERIC, 'us')
 
+
+LOGIN_PAGE = "Login"
+HISTORY_PAGE = "History"
+PORTFOLIO_PAGE = "Portfolio"
+MFA_PAGE = "MFA"
+
+COOKIES_PATH_PREFIX = "../Data/"
+COOKIES_PATH_SUFFIX = "_cookies.txt"
+
+transaction_types = {
+    "MARKET_SELL": "Market Sell",
+    "MARKET_BUY": "Market Buy",
+    "LIMIT_SELL": "Limit Sell",
+    "LIMIT_BUY": "Limit Buy",
+    "DIVIDEND": "Dividend",
+    "CANCELED": "Canceled"
+}
+
+
+section_types = {
+  "PENDING": "Pending",
+  "RECENT": "Recent",
+  "OLDER": "Older"
+}
+
+
+class AnyEc:
+    """ Use with WebDriverWait to combine expected_conditions
+        in an OR.
+    """
+    def __init__(self, *args):
+        self.ecs = args
+    def __call__(self, driver):
+        for fn in self.ecs:
+            try:
+                if fn(driver): return True
+            except:
+                pass
+
+
 def getRHData():
 
+  driver, saffronUsername = createSession()
+
+  navigateToRobinhood(driver)
+
+  currentPage = checkCurrentPage(driver)
+
+  while currentPage != HISTORY_PAGE:
+    print(currentPage)
+    if (currentPage == LOGIN_PAGE):
+      enterUserCredentials(driver)
+      letNonLoginPageLoad(driver)
+
+    if (currentPage == MFA_PAGE):
+      enterMFA(driver)
+      letNonMFAPageLoad(driver)
+
+    if (currentPage == PORTFOLIO_PAGE):
+      navigateToHistoryPage(driver)
+
+    currentPage = checkCurrentPage(driver)
+
+  #at this point you should be at the history page
+
+  scroll_down(driver)
+  
+  transactions = gatherTransactions(driver)
+
+  
+  transaction_arr = parseTransactions(driver, transactions)
+      
+  endSession(driver, saffronUsername)
+
+  return transaction_arr
+
+
+
+  	# elif transaction_types[DIVIDEND] in header_text:
+
+  #driver.close()
+
+def createSession():
+  username = input("Please enter your Saffron username: ")
+
   driver = webdriver.Chrome()
+  navigateToRobinhood(driver)
 
-  driver.get("https://www.robinhood.com/login")
+  fileName = COOKIES_PATH_PREFIX + username.rstrip() + COOKIES_PATH_SUFFIX
+  
+  fileDir = os.path.dirname(os.path.realpath(__file__))
+  filePath = os.path.join(fileDir, fileName)
+  filePath = os.path.abspath(os.path.realpath(filePath))
 
-  WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.CLASS_NAME, "css-19gyy64")))
+  try:
+    cookieFile = open(filePath)
+    loadCookies(driver, filePath)
+  except: #TODO: catch specific exceptions here
+    pass 
+  
 
-  username_input = input("Please enter your username: ")
+  return (driver, username)
 
-  password_input = input("Please enter your password: ")
+
+def endSession(driver, username):
+  fileName = COOKIES_PATH_PREFIX + username.rstrip() + COOKIES_PATH_SUFFIX
+  
+  fileDir = os.path.dirname(os.path.realpath(__file__))
+  filePath = os.path.join(fileDir, fileName)
+  filePath = os.path.abspath(os.path.realpath(filePath))
+
+  open(filePath, "w").close() #creates file if doesn't exist, clears contents if it does
+  saveCookies(driver, filePath)
+  driver.quit()
+  #driver.close() TODO: might be worth testing out if quit or close is better
+
+
+def saveCookies(driver, filePath):
+    with open(filePath, 'wb') as filehandler:
+        cookies = driver.get_cookies()
+        pickle.dump(cookies, filehandler)
+
+
+
+def loadCookies(driver, filePath):
+  with open(filePath, 'rb') as cookiesfile:
+      cookies = pickle.load(cookiesfile)
+      
+      for cookie in cookies:
+        driver.add_cookie(cookie)
+
+
+
+def navigateToRobinhood(driver):
+
+  driver.get("https://robinhood.com/account/history")
+
+
+def letPageLoad(driver):
+  WebDriverWait(driver, 20).until(AnyEc(
+      EC.presence_of_element_located((By.CLASS_NAME, "css-16758fh")),
+      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
+      EC.title_contains("Portfolio"),
+      EC.presence_of_element_located((By.CLASS_NAME, "css-1upilqn"))
+      )
+  )
+
+def letNonLoginPageLoad(driver):
+  print("lets non login page load")
+  WebDriverWait(driver, 20).until(AnyEc(
+      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
+      EC.title_contains("Portfolio"),
+      EC.presence_of_element_located((By.CLASS_NAME, "css-1upilqn")),
+      )
+  )
+
+def letNonMFAPageLoad(driver):
+  WebDriverWait(driver, 20).until(AnyEc(
+      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
+      EC.title_contains("Portfolio")
+      )
+  )
+
+
+def checkCurrentPage(driver):
+  letPageLoad(driver)
+
+  loginPageCheck = driver.find_elements_by_class_name("css-16758fh")
+  historyPageCheck = driver.find_elements_by_class_name("rh-expandable-item-a32bb9ad")
+  mfaPageCheck = driver.find_elements_by_class_name("css-1upilqn")
+  if loginPageCheck:
+    return LOGIN_PAGE
+  if historyPageCheck:
+    return HISTORY_PAGE
+  if mfaPageCheck:
+    return MFA_PAGE
+  return PORTFOLIO_PAGE
+
+
+def enterUserCredentials(driver):
+  username_input = input("Please enter your Robinhood username: ")
+
+  password_input = getpass("Please enter your Robinhood password: ")
 
   if username_input and password_input:
 
@@ -33,10 +209,15 @@ def getRHData():
 
     driver.find_element_by_class_name("css-1l2vicc").click()
 
-  WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='css-0']/button[1]")))
+  #WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='css-0']/button[1]")))
 
+  #driver.find_element_by_class_name("css-1l2vicc").click()
+
+
+
+
+def enterMFA(driver):
   driver.find_element_by_class_name("css-1l2vicc").click()
-
   verification_code = input("Please input your 6 digit verification code: ")
 
   if verification_code:
@@ -46,41 +227,55 @@ def getRHData():
 
     driver.find_element_by_class_name("_2GHn41jUsfSSC9HmVWT-eg").click()
 
-  WebDriverWait(driver, 50).until(EC.title_contains("Portfolio"))
 
+
+def navigateToHistoryPage(driver):
   driver.get("https://www.robinhood.com/account/history")
 
   WebDriverWait(driver, 50).until(EC.title_contains("Account"))
 
   WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")))
 
-  scroll_down(driver)
 
+
+def scroll_down(driver):
+    """A method for scrolling the page."""
+
+    # Get scroll height.
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while True:
+
+        # Scroll down to the bottom.
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+        # Wait to load the page.
+        time.sleep(2)
+
+        # Calculate new scroll height and compare with last scroll height.
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        if new_height == last_height:
+
+            break
+
+        last_height = new_height
+
+
+
+def gatherTransactions(driver):
   transactions = []
-
   sections = driver.find_elements_by_class_name("_2wuDJhUh9lal-48SV5IIfk")
-
-  section_types = {
-    "PENDING": "Pending",
-    "RECENT": "Recent",
-    "OLDER": "Older"
-  }
 
   for section in sections:
     section_name = section.find_element_by_xpath(".//h2").get_attribute('textContent')
     if section_types["PENDING"] not in section_name:
       section_transactions = section.find_elements_by_class_name("rh-expandable-item-a32bb9ad")
       transactions.extend(section_transactions)
+  return transactions
 
-  transaction_types = {
-      "MARKET_SELL": "Market Sell",
-      "MARKET_BUY": "Market Buy",
-      "LIMIT_SELL": "Limit Sell",
-      "LIMIT_BUY": "Limit Buy",
-      "DIVIDEND": "Dividend",
-      "CANCELED": "Canceled"
-  }
 
+def parseTransactions(driver, transactions):
   transaction_arr = []
   company_name_dict = {}
 
@@ -131,9 +326,11 @@ def getRHData():
     if transaction_types["CANCELED"] in canceled_text:
       continue
 
+
     if transaction_types["LIMIT_SELL"] in header_text or transaction_types["LIMIT_BUY"] in header_text:
 
       company_name = " ".join(company_name_list[:-2])
+
 
       info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
       ticker_symbol_node = info_children[1]
@@ -141,7 +338,7 @@ def getRHData():
 
       if company_name not in company_name_dict.keys():
         company_name_dict[company_name] = ticker_symbol
-      
+
       transaction_type_node = info_children[3]
       transaction_type = transaction_type_node.find_element_by_xpath(".//span").get_attribute('textContent')
       transaction_type_split = transaction_type.split(" ")
@@ -214,29 +411,3 @@ def getRHData():
 
 
 
-  	# elif transaction_types[DIVIDEND] in header_text:
-
-  #driver.close()
-
-def scroll_down(driver):
-    """A method for scrolling the page."""
-
-    # Get scroll height.
-    last_height = driver.execute_script("return document.body.scrollHeight")
-
-    while True:
-
-        # Scroll down to the bottom.
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-        # Wait to load the page.
-        time.sleep(3)
-
-        # Calculate new scroll height and compare with last scroll height.
-        new_height = driver.execute_script("return document.body.scrollHeight")
-
-        if new_height == last_height:
-
-            break
-
-        last_height = new_height
