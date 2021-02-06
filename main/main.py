@@ -21,8 +21,8 @@ for i in range(50):
   print("\n")
 
 for transaction in transactions_arr:
-  ticker, transaction_type, quantity, price, transaction_date = transaction
-  transactions_store.addTransaction(ticker, price, quantity, transaction_type, transaction_date)
+  ticker, transaction_type, quantity, price, total_value, transaction_date = transaction
+  transactions_store.addTransaction(ticker, transaction_type, quantity, price, total_value, transaction_date)
 
 
 for stock in transactions_store.transactions_dict.keys():
