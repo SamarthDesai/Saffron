@@ -11,9 +11,8 @@ from datetime import datetime
 import locale
 import pickle
 import platform
-
-
-
+import yfinance
+from ..Classes import Transaction
 
 LOGIN_PAGE = "Login"
 HISTORY_PAGE = "History"
@@ -29,6 +28,7 @@ transaction_types = {
     "LIMIT_SELL": "Limit Sell",
     "LIMIT_BUY": "Limit Buy",
     "DIVIDEND": "Dividend",
+    "FREE": "from Robinhood",
     "CANCELED": "Canceled"
 }
 
@@ -64,7 +64,6 @@ def getRHData():
   currentPage = checkCurrentPage(driver)
 
   while currentPage != HISTORY_PAGE:
-    print(currentPage)
     if (currentPage == LOGIN_PAGE):
       enterUserCredentials(driver)
       letNonLoginPageLoad(driver)
@@ -152,6 +151,15 @@ def navigateToRobinhood(driver):
 
   driver.get("https://robinhood.com/account/history")
 
+def navigateToStock(driver, stock_ticker):
+
+  driver.get(f"https://robinhood.com/stocks/{stock_ticker}")
+
+  WebDriverWait(driver, 20).until(AnyEc(
+    EC.presence_of_element_located((By.CLASS_NAME, "Jo5RGrWjFiX_iyW3gMLsy"))
+    )
+  )
+
 
 def letPageLoad(driver):
   WebDriverWait(driver, 20).until(AnyEc(
@@ -163,7 +171,6 @@ def letPageLoad(driver):
   )
 
 def letNonLoginPageLoad(driver):
-  print("lets non login page load")
   WebDriverWait(driver, 20).until(AnyEc(
       EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
       EC.title_contains("Portfolio"),
@@ -264,7 +271,6 @@ def scroll_down(driver):
         last_height = new_height
 
 
-
 def gatherTransactions(driver):
   transactions = []
   sections = driver.find_elements_by_class_name("_2wuDJhUh9lal-48SV5IIfk")
@@ -291,6 +297,7 @@ def parseTransactions(driver, transactions):
   for transaction in transactions:
 
     header_text = transaction.find_element_by_xpath(".//div[@class='_2VPzNpwfga_8Mcn-DCUwug']").text
+
     canceled_text = transaction.find_element_by_xpath(".//div[@class='_22YwnO0XVSevsIC6rD9HS3']").text
 
     if transaction_types["CANCELED"] in canceled_text:
@@ -314,7 +321,24 @@ def parseTransactions(driver, transactions):
       transaction_with_date = (transaction, date)
       transactions_with_dates.append(transaction_with_date)
 
+    elif transaction_types["FREE"] in header_text:
+
+      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+
+      date_node = info_children[5]
+      date = date_node.get_attribute('textContent')
+
+      transaction_with_date = (transaction, date)
+      transactions_with_dates.append(transaction_with_date)
+
+  for transaction_with_date in transactions_with_dates:
+    print(transaction_with_date)
+
   transactions_with_dates.sort(key = lambda date: datetime.strptime(date[1], '%b %d, %Y'))
+
+  dividends_from_free_stocks = []
+
+  free_stocks = []
 
   for transaction_with_date in transactions_with_dates:
 
@@ -327,8 +351,6 @@ def parseTransactions(driver, transactions):
     company_name_title = header_text.split("\n")
 
     company_name_list = company_name_title[0].split(" ")
-
-    print(company_name_list)
     
     if transaction_types["CANCELED"] in canceled_text:
       continue
@@ -360,8 +382,11 @@ def parseTransactions(driver, transactions):
       price = locale.atof(price.split("$")[1])
       total_value_node = info_children[19]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
-      transaction_tuple = (ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
-      transaction_arr.append(transaction_tuple)
+      
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+
+      transaction_arr.append(transaction_obj)
+
       continue
 
     if transaction_types["MARKET_SELL"] in header_text or transaction_types["MARKET_BUY"] in header_text:
@@ -389,19 +414,26 @@ def parseTransactions(driver, transactions):
       price = locale.atof(price.split("$")[1])
       total_value_node = info_children[17]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
-      transaction_tuple = (ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
-      transaction_arr.append(transaction_tuple)
+
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+
+      transaction_arr.append(transaction_obj)
+
       continue
 
     if transaction_types["DIVIDEND"] in header_text:
 
       company_name = " ".join(company_name_list[2:])
 
-      ticker_symbol = company_name_dict[company_name]
+      ticker_symbol = ""
+
+      if company_name in company_name_dict.keys():
+
+        ticker_symbol = company_name_dict[company_name]
 
       info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
 
-      transaction_type = "Dividend"
+      transaction_type_final = "Dividend"
       transaction_date_node = transaction.find_elements_by_xpath(".//span[@class='css-zy0xqa']")[1]
       transaction_date = transaction_date_node.get_attribute('textContent')
 
@@ -411,8 +443,60 @@ def parseTransactions(driver, transactions):
 
       total_value = locale.atof(info_children[5].get_attribute('textContent').split("$")[1])
 
-      transaction_tuple = (ticker_symbol, transaction_type, quantity, price, total_value, transaction_date)
-      transaction_arr.append(transaction_tuple)
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+
+      transaction_arr.append(transaction_obj)
+
+      if ticker_symbol == "":
+        dividends_from_free_stocks.append((transaction_obj, company_name))
+
+      continue
+
+    if transaction_types["FREE"] in header_text:
+
+      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+
+      ticker_symbol = company_name_list[0]
+
+      # company_name = yfinance.Ticker(ticker_symbol).info
+
+      # stock_driver = webdriver.Chrome()
+
+      print("KD > LEBRON")
+
+      transaction_type_final = "Free"
+      transaction_date_node = info_children[5]
+      transaction_date = transaction_date_node.get_attribute('textContent')
+
+      quantity_and_total_value_node = info_children[7]
+      quantity_and_total_value = quantity_and_total_value_node.get_attribute('textContent')
+
+      quantity = quantity_and_total_value.split(" ")[0]
+
+      price = 0
+
+      total_value = locale.atof(quantity_and_total_value.split(" ")[3].split("$")[1])
+
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+
+      free_stocks.append(transaction_obj)
+
+      transaction_arr.append(transaction_obj)
+
+  for free_stock in free_stocks:
+
+    ticker = free_stock.ticker
+
+    navigateToStock(driver, ticker)
+
+    company_name = driver.find_element_by_xpath("//header[@class='Jo5RGrWjFiX_iyW3gMLsy']/h1[1]").text
+
+    if company_name not in company_name_dict.keys():
+      company_name_dict[company_name] = ticker
+
+  for dividend in dividends_from_free_stocks:
+    dividend_obj, company_name = dividend
+    dividend_obj.ticker = company_name_dict[company_name]
 
   return transaction_arr
 
