@@ -383,7 +383,7 @@ def parseTransactions(driver, transactions):
       total_value_node = info_children[19]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
       
-      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type, quantity, price, total_value, transaction_date)
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
 
       transaction_arr.append(transaction_obj)
 
@@ -415,7 +415,7 @@ def parseTransactions(driver, transactions):
       total_value_node = info_children[17]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
 
-      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type, quantity, price, total_value, transaction_date)
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
 
       transaction_arr.append(transaction_obj)
 
@@ -433,7 +433,7 @@ def parseTransactions(driver, transactions):
 
       info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
 
-      transaction_type = "Dividend"
+      transaction_type_final = "Dividend"
       transaction_date_node = transaction.find_elements_by_xpath(".//span[@class='css-zy0xqa']")[1]
       transaction_date = transaction_date_node.get_attribute('textContent')
 
@@ -443,7 +443,7 @@ def parseTransactions(driver, transactions):
 
       total_value = locale.atof(info_children[5].get_attribute('textContent').split("$")[1])
 
-      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type, quantity, price, total_value, transaction_date)
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
 
       transaction_arr.append(transaction_obj)
 
@@ -464,7 +464,7 @@ def parseTransactions(driver, transactions):
 
       print("KD > LEBRON")
 
-      transaction_type = "Free"
+      transaction_type_final = "Free"
       transaction_date_node = info_children[5]
       transaction_date = transaction_date_node.get_attribute('textContent')
 
@@ -477,7 +477,7 @@ def parseTransactions(driver, transactions):
 
       total_value = locale.atof(quantity_and_total_value.split(" ")[3].split("$")[1])
 
-      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type, quantity, price, total_value, transaction_date)
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
 
       free_stocks.append(transaction_obj)
 
