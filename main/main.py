@@ -18,9 +18,8 @@ transactions_store = ts.TransactionStore()
 transactions_arr = scraper.getRHData()
 
 for transaction in transactions_arr:
-  ticker, transaction_type, quantity, price, total_value, transaction_date = transaction
-  print(transaction_type, ticker, quantity, " @ ", price, " on ", transaction_date)
-  transactions_store.addTransaction(ticker, transaction_type, quantity, price, total_value, transaction_date)
+  print(transaction.type, transaction.ticker, transaction.quantity, " @ ", transaction.price, " on ", transaction.date)
+  transactions_store.addTransaction(transaction)
 
 
 for stock in transactions_store.transactions_dict.keys():
