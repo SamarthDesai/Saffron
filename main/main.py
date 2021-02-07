@@ -18,11 +18,12 @@ def getCurrentPrice(ticker):
   stock_current_price = float(0)
   try:
     stock_current_info = yf.Ticker(ticker).info
-    stock_current_price = (float(stock_current_info['ask']) + float(stock_current_info['ask']))/2
-    if (float(stock_current_info['ask']) == float(0) or float(stock_current_info['buy']) == float(0)):
+    stock_current_price = (float(stock_current_info['ask']) + float(stock_current_info['bid']))/2
+    if (float(stock_current_info['ask']) == float(0) or float(stock_current_info['bid']) == float(0)):
       stock_current_price = float(stock_current_info['open'])
   except:
     pass
+
   return stock_current_price
 
 transactions_store = ts.TransactionStore()
@@ -39,11 +40,14 @@ for stock in transactions_store.transactions_dict.keys():
 
   #arr = gains.getGains(transactions_store.transactions_dict[stock], 1000, method="AVERAGE_COST")
   #print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[3]}")
-  stock_current_price = getCurrentPrice(stock)
-  arr = gains.getGains(transactions_store.transactions_dict[stock], stock_current_price)
-  total_gains+= (float(arr[0]) + float(arr[2]))
-  print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
+  try:
+    stock_current_price = getCurrentPrice(stock)
+    arr = gains.getGains(transactions_store.transactions_dict[stock], stock_current_price)
+    total_gains+= (float(arr[0]) + float(arr[2]))
+    print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
 
+  except:
+    continue
 print("Total gains: ", total_gains)
 '''
 for i in range(50):

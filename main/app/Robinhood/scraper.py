@@ -331,9 +331,6 @@ def parseTransactions(driver, transactions):
       transaction_with_date = (transaction, date)
       transactions_with_dates.append(transaction_with_date)
 
-  for transaction_with_date in transactions_with_dates:
-    print(transaction_with_date)
-
   transactions_with_dates.sort(key = lambda date: datetime.strptime(date[1], '%b %d, %Y'))
 
   dividends_from_free_stocks = []
@@ -457,12 +454,6 @@ def parseTransactions(driver, transactions):
       info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
 
       ticker_symbol = company_name_list[0]
-
-      # company_name = yfinance.Ticker(ticker_symbol).info
-
-      # stock_driver = webdriver.Chrome()
-
-      print("KD > LEBRON")
 
       transaction_type_final = "Free"
       transaction_date_node = info_children[5]
