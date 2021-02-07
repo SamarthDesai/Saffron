@@ -500,5 +500,17 @@ def parseTransactions(driver, transactions):
 
   return transaction_arr
 
-
-
+'''
+def getStockPrice(driver, ticker):
+  url = "https://robinhood.com/stocks/" + ticker
+  driver.get(url)
+  WebDriverWait(driver, 20).until(AnyEc(
+      EC.presence_of_element_located((By.CLASS_NAME, "css-1baulvz"))
+      )
+  )
+  elem = driver.find_elements_by_class_name("css-1baulvz")
+  price = ""
+  for x in elem:
+    price += x.get_attribute('textContent')
+  print(price)
+'''
