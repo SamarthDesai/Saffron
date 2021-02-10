@@ -69,7 +69,7 @@ def getFIFOGains(transaction_arr, current_price):
       sell_price = transaction.price
       sell_quantity = transaction.quantity
       partial_gain = determineFIFOGain(bought_shares_queue, sell_price, sell_quantity)
-      gain += partial_gain
+      gain += (partial_gain - transaction.regulatory_fee)
       quantity_shares_remaining -= sell_quantity
     elif transaction.type == "Dividend":
       gain += transaction.total_value
