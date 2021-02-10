@@ -35,7 +35,8 @@ for transaction in transactions_arr:
 
 index = 0
 
-total_gains = float(0)
+total_realized_gains = float(0)
+total_unrealized_gains = float(0)
 for stock in transactions_store.transactions_dict.keys():
 
   #arr = gains.getGains(transactions_store.transactions_dict[stock], 1000, method="AVERAGE_COST")
@@ -43,12 +44,14 @@ for stock in transactions_store.transactions_dict.keys():
   try:
     stock_current_price = getCurrentPrice(stock)
     arr = gains.getGains(transactions_store.transactions_dict[stock], stock_current_price)
-    total_gains+= (float(arr[0]) + float(arr[2]))
+    total_realized_gains += float(arr[0])
+    total_unrealized_gains += float(arr[2])
     print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
 
   except:
     continue
-print("Total gains: ", total_gains)
+total_gains = total_realized_gains + total_unrealized_gains
+print("Total Realized Gains: ", total_realized_gains, "Total Unrealized Gains: ", total_unrealized_gains, "Total Gains: ", total_gains)
 '''
 for i in range(50):
   print("\n")

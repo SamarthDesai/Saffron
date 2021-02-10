@@ -379,8 +379,14 @@ def parseTransactions(driver, transactions):
       price = locale.atof(price.split("$")[1])
       total_value_node = info_children[19]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
+
+      regulatory_fee = 0
+
+      if len(info_children) == 22:
+        regulatory_fee_node = info_children[21]
+        regulatory_fee = locale.atof(regulatory_fee_node.get_attribute('textContent').split("$")[1])
       
-      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date, regulatory_fee)
 
       transaction_arr.append(transaction_obj)
 
@@ -412,7 +418,14 @@ def parseTransactions(driver, transactions):
       total_value_node = info_children[17]
       total_value = locale.atof(total_value_node.get_attribute('textContent').split("$")[1])
 
-      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date)
+      regulatory_fee = 0
+
+      if len(info_children) == 20:
+        regulatory_fee_node = info_children[19]
+        regulatory_fee = locale.atof(regulatory_fee_node.get_attribute('textContent').split("$")[1])
+        print(ticker_symbol, " has a regulatory fee of ", regulatory_fee)
+
+      transaction_obj = Transaction.Transaction(ticker_symbol, transaction_type_final, quantity, price, total_value, transaction_date, regulatory_fee)
 
       transaction_arr.append(transaction_obj)
 
