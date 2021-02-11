@@ -41,24 +41,20 @@ index = 0
 total_realized_gains = float(0)
 total_unrealized_gains = float(0)
 for stock in transactions_store.transactions_dict.keys():
-
-  print("Look here for datetimes!---------------------")
-
-  #arr = gains.getGains(transactions_store.transactions_dict[stock], 1000, method="AVERAGE_COST")
-  #print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[3]}")
   try:
+
     stock_current_price = getCurrentPrice(stock)
     arr = gains.getGains(transactions_store.transactions_dict[stock], stock_current_price)
-    current_position = curr_pos.CurrentPosition(arr[1])
+    current_position = curr_pos.CurrentPosition(stock, arr[1])
     current_positions_store.addCurrentPosition(current_position)
     total_realized_gains += float(arr[0])
     total_unrealized_gains += float(arr[2])
     realized_xirr = XIRR.XIRR_Calc(transactions_store.transactions_dict[stock])
 
     print(f"{stock} \n realized gains: {arr[0]} \n realized irr: {realized_xirr} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
-
   except:
     continue
+
 
 total_gains = total_realized_gains + total_unrealized_gains
 print("Total Realized Gains: ", total_realized_gains, "Total Unrealized Gains: ", total_unrealized_gains, "Total Gains: ", total_gains)

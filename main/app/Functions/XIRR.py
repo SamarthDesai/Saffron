@@ -50,9 +50,9 @@ def XIRR(transaction_array, current_positions=None, tickers=[], current_prices={
         quantity_left = current_positions[ticker].quantity
         current_price = current_prices[ticker]
         transaction_type = "Sell"
-        date = date.today()
+        transaction_date = date.today().strftime("%b %d, %Y")
         unrealized_gains_transaction = Transaction.Transaction(ticker, transaction_type,
-            quantity_left, current_price, current_price*quantity_left, date)
+            quantity_left, current_price, current_price*quantity_left, transaction_date)
         transactions_with_unrealized.append(unrealized_gains_transaction)
     return XIRR_Calc(transactions_with_unrealized)
 

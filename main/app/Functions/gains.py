@@ -61,7 +61,6 @@ def getFIFOGains(transaction_arr, current_price):
   quantity_shares_remaining = 0
 
   for transaction in transaction_arr:
-    print(transaction.date, " is the date string")
     if transaction.type == "Buy" or transaction.type == "Free":
       cost_basis_buy = CostBasisPosition(transaction.price, transaction.quantity, transaction.date) #TODO, FIX TRANSACTION DATE from 1
       bought_shares_queue.append(cost_basis_buy)
