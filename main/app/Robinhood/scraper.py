@@ -19,8 +19,38 @@ HISTORY_PAGE = "History"
 PORTFOLIO_PAGE = "Portfolio"
 MFA_PAGE = "MFA"
 
+'''
+Login page DOM element corresponding to the login button
+'''
+LOGIN_BUTTON = "Login_Button"
+
+
+'''
+History DOM div containing transaction info as text content 
+(e.g. "Symbol" is contained in this div in the hidden section for
+a transacton)
+'''
+INFO_CHILDREN = "info_children"
+
+'''
+History DOM span containing the date a dividend was 
+Paid in the hidden transaction section. Should be the "Paid • <Date>" element.
+'''
+DIVIDEND_DATE_NODE = "Dividend_date_node"
+
 COOKIES_PATH_PREFIX = "../Data/"
 COOKIES_PATH_SUFFIX = "_cookies.txt"
+
+ELEMENT_IDENTIFIERS = {
+  LOGIN_PAGE: "_17_I0wDhYhTnsfNxPR0_CF", #a unique element on login page
+  HISTORY_PAGE: "rh-expandable-item-a32bb9ad",
+  PORTFOLIO_PAGE: "Portfolio",
+  MFA_PAGE: "css-1upilqn",
+  LOGIN_BUTTON: "_1OsoaRGpMCXh9KT8s7wtwm", #class for login button
+  INFO_CHILDREN: "css-6e9jx2", 
+  DIVIDEND_DATE_NODE: "css-102y9x9", 
+}
+
 
 transaction_types = {
     "MARKET_SELL": "Market Sell",
@@ -82,7 +112,6 @@ def getRHData():
   scroll_down(driver)
   
   transactions = gatherTransactions(driver)
-
   
   transaction_arr = parseTransactions(driver, transactions)
       
@@ -163,10 +192,10 @@ def navigateToStock(driver, stock_ticker):
 
 def letPageLoad(driver):
   WebDriverWait(driver, 20).until(AnyEc(
-      EC.presence_of_element_located((By.CLASS_NAME, "css-16758fh")),
-      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
-      EC.title_contains("Portfolio"),
-      EC.presence_of_element_located((By.CLASS_NAME, "css-1upilqn"))
+      EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[LOGIN_PAGE])), #login page
+      EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[HISTORY_PAGE])), #account history
+      EC.title_contains(ELEMENT_IDENTIFIERS[PORTFOLIO_PAGE]), #portfolio page
+      EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[MFA_PAGE])) #mfa page
       )
   )
 
@@ -188,8 +217,8 @@ def letNonMFAPageLoad(driver):
 
 def checkCurrentPage(driver):
   letPageLoad(driver)
-
-  loginPageCheck = driver.find_elements_by_class_name("css-16758fh")
+  print("got here")
+  loginPageCheck = driver.find_elements_by_class_name("_17_I0wDhYhTnsfNxPR0_CF")
   historyPageCheck = driver.find_elements_by_class_name("rh-expandable-item-a32bb9ad")
   mfaPageCheck = driver.find_elements_by_class_name("css-1upilqn")
   if loginPageCheck:
@@ -216,7 +245,7 @@ def enterUserCredentials(driver):
 
     password.send_keys(password_input)
 
-    driver.find_element_by_class_name("css-1l2vicc").click()
+    driver.find_element_by_class_name(ELEMENT_IDENTIFIERS[LOGIN_BUTTON]).click()
 
   #WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='css-0']/button[1]")))
 
@@ -305,8 +334,7 @@ def parseTransactions(driver, transactions):
 
     if transaction_types["LIMIT_SELL"] in header_text or transaction_types["LIMIT_BUY"] in header_text or transaction_types["MARKET_SELL"] in header_text or transaction_types["MARKET_BUY"] in header_text:
 
-      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
-
+      info_children = transaction.find_elements_by_class_name(ELEMENT_IDENTIFIERS[INFO_CHILDREN])
       date_node = info_children[7]
       date = date_node.get_attribute('textContent')
 
@@ -315,7 +343,7 @@ def parseTransactions(driver, transactions):
 
     elif transaction_types["DIVIDEND"] in header_text:
 
-      date_node = transaction.find_elements_by_xpath(".//span[@class='css-zy0xqa']")[1]
+      date_node = transaction.find_elements_by_class_name(ELEMENT_IDENTIFIERS[DIVIDEND_DATE_NODE])[1]
       date = date_node.get_attribute('textContent')
 
       transaction_with_date = (transaction, date)
@@ -323,7 +351,7 @@ def parseTransactions(driver, transactions):
 
     elif transaction_types["FREE"] in header_text:
 
-      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+      info_children = transaction.find_elements_by_class_name(ELEMENT_IDENTIFIERS[INFO_CHILDREN])
 
       date_node = info_children[5]
       date = date_node.get_attribute('textContent')
@@ -358,7 +386,7 @@ def parseTransactions(driver, transactions):
       company_name = " ".join(company_name_list[:-2])
 
 
-      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+      info_children = transaction.find_elements_by_xpath(ELEMENT_IDENTIFIERS[INFO_CHILDREN])
       ticker_symbol_node = info_children[1]
       ticker_symbol = ticker_symbol_node.find_element_by_xpath(".//a").get_attribute('textContent')
 
@@ -395,8 +423,9 @@ def parseTransactions(driver, transactions):
     if transaction_types["MARKET_SELL"] in header_text or transaction_types["MARKET_BUY"] in header_text:
 
       company_name = " ".join(company_name_list[:-2])
-
-      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+      print(header_text)
+      info_children = transaction.find_elements_by_class_name(ELEMENT_IDENTIFIERS[INFO_CHILDREN])
+      print(info_children)
       ticker_symbol_node = info_children[1]
       ticker_symbol = ticker_symbol_node.find_element_by_xpath(".//a").get_attribute('textContent')
 
@@ -441,10 +470,10 @@ def parseTransactions(driver, transactions):
 
         ticker_symbol = company_name_dict[company_name]
 
-      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+      info_children = transaction.find_elements_by_class_name(ELEMENT_IDENTIFIERS[INFO_CHILDREN])
 
       transaction_type_final = "Dividend"
-      transaction_date_node = transaction.find_elements_by_xpath(".//span[@class='css-zy0xqa']")[1]
+      transaction_date_node = transaction.find_elements_by_class_name(ELEMENT_IDENTIFIERS[DIVIDEND_DATE_NODE])[1]
       transaction_date = transaction_date_node.get_attribute('textContent')
 
       quantity = info_children[1].get_attribute('textContent')
@@ -464,7 +493,7 @@ def parseTransactions(driver, transactions):
 
     if transaction_types["FREE"] in header_text:
 
-      info_children = transaction.find_elements_by_xpath(".//div[@class='css-1qd1r5f']")
+      info_children = transaction.find_elements_by_class_name(ELEMENT_IDENTIFIERS[INFO_CHILDREN])
 
       ticker_symbol = company_name_list[0]
 
