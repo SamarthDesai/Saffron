@@ -38,6 +38,60 @@ Paid in the hidden transaction section. Should be the "Paid • <Date>" element.
 '''
 DIVIDEND_DATE_NODE = "Dividend_date_node"
 
+'''
+Stock page DOM element containing the full company name. 
+It's right at the top, above the chart and price.
+'''
+STOCK_PAGE_COMPANY_NAME = "Stock_page_company_name"
+
+'''
+Login page DOM element containing the input for the username.
+'''
+USERNAME_INPUT = "Username_input"
+
+'''
+Login page DOM element containing the input for the password.
+'''
+PASSWORD_INPUT = "Password_input"
+
+'''
+MFA page DOM element containing the button to trigger RH sending out
+the MFA code to linked phone number.
+'''
+MFA_SMS_BUTTON = "Mfa_sms_button"
+
+'''
+MFA page DOM element containing the input for the MFA code.
+'''
+MFA_PAGE_CODE_INPUT = "Mfa_page_code_input"
+
+'''
+MFA page DOM element containing the submit button to verify code and login.
+'''
+MFA_PAGE_CODE_SUBMIT_BUTTON = "Mfa_page_code_submit_button"
+
+'''
+History page DOM element containing the div of transaction sections.
+If user has pending stocks, then "Pending" is the 
+first section. Otherwise, it's "Recent"
+"Pending" or "Recent" are <h2> elements underneath the 
+div we're looking for.
+'''
+HISTORY_PAGE_TRANSACTION_SECTIONS = "History_page_transaction_sections"
+
+'''
+History page DOM element containing the div of a transaction. 
+It's the uppermost element that still only pertains to one transaction.
+'''
+HISTORY_PAGE_TRANSACTION = "History_page_transaction"
+
+'''
+History page DOM div element containing the header text of a transaction.
+Header text is like "GoPro Market Sell".
+'''
+HISTORY_PAGE_TRANSACTION_HEADER_TEXT = "History_page_transaction_header_text"
+
+
 COOKIES_PATH_PREFIX = "../Data/"
 COOKIES_PATH_SUFFIX = "_cookies.txt"
 
@@ -49,6 +103,15 @@ ELEMENT_IDENTIFIERS = {
   LOGIN_BUTTON: "_1OsoaRGpMCXh9KT8s7wtwm", #class for login button
   INFO_CHILDREN: "css-6e9jx2", 
   DIVIDEND_DATE_NODE: "css-102y9x9", 
+  STOCK_PAGE_COMPANY_NAME: "//header[@class='Jo5RGrWjFiX_iyW3gMLsy']/h1[1]",
+  USERNAME_INPUT: "username",
+  PASSWORD_INPUT: "css-a4852m",
+  MFA_SMS_BUTTON: "_1OsoaRGpMCXh9KT8s7wtwm",
+  MFA_PAGE_CODE_INPUT: "response",
+  MFA_PAGE_CODE_SUBMIT_BUTTON: "_2GHn41jUsfSSC9HmVWT-eg",
+  HISTORY_PAGE_TRANSACTION_SECTIONS: "_2wuDJhUh9lal-48SV5IIfk",
+  HISTORY_PAGE_TRANSACTION: "rh-expandable-item-a32bb9ad",
+  HISTORY_PAGE_TRANSACTION_HEADER_TEXT: "_2VPzNpwfga_8Mcn-DCUwug"
 }
 
 
@@ -185,7 +248,7 @@ def navigateToStock(driver, stock_ticker):
   driver.get(f"https://robinhood.com/stocks/{stock_ticker}")
 
   WebDriverWait(driver, 20).until(AnyEc(
-    EC.presence_of_element_located((By.CLASS_NAME, "Jo5RGrWjFiX_iyW3gMLsy"))
+    EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[STOCK_PAGE_COMPANY_NAME]))
     )
   )
 
@@ -201,16 +264,16 @@ def letPageLoad(driver):
 
 def letNonLoginPageLoad(driver):
   WebDriverWait(driver, 20).until(AnyEc(
-      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
-      EC.title_contains("Portfolio"),
-      EC.presence_of_element_located((By.CLASS_NAME, "css-1upilqn")),
+      EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[HISTORY_PAGE])),
+      EC.title_contains(ELEMENT_IDENTIFIERS[PORTFOLIO_PAGE]),
+      EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[MFA_PAGE])),
       )
   )
 
 def letNonMFAPageLoad(driver):
   WebDriverWait(driver, 20).until(AnyEc(
-      EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")),
-      EC.title_contains("Portfolio")
+      EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[HISTORY_PAGE])),
+      EC.title_contains(ELEMENT_IDENTIFIERS[PORTFOLIO_PAGE])
       )
   )
 
@@ -218,9 +281,9 @@ def letNonMFAPageLoad(driver):
 def checkCurrentPage(driver):
   letPageLoad(driver)
   print("got here")
-  loginPageCheck = driver.find_elements_by_class_name("_17_I0wDhYhTnsfNxPR0_CF")
-  historyPageCheck = driver.find_elements_by_class_name("rh-expandable-item-a32bb9ad")
-  mfaPageCheck = driver.find_elements_by_class_name("css-1upilqn")
+  loginPageCheck = driver.find_elements_by_class_name(ELEMENT_IDENTIFIERS[LOGIN_PAGE])
+  historyPageCheck = driver.find_elements_by_class_name(ELEMENT_IDENTIFIERS[HISTORY_PAGE])
+  mfaPageCheck = driver.find_elements_by_class_name(ELEMENT_IDENTIFIERS[MFA_PAGE])
   if loginPageCheck:
     return LOGIN_PAGE
   if historyPageCheck:
@@ -237,11 +300,11 @@ def enterUserCredentials(driver):
 
   if username_input and password_input:
 
-    username = driver.find_element_by_name('username')
+    username = driver.find_element_by_name(ELEMENT_IDENTIFIERS[USERNAME_INPUT])
 
     username.send_keys(username_input)
 
-    password = driver.find_element_by_xpath("//div[@class='css-19gyy64']/input[1]")
+    password = driver.find_element_by_class_name(ELEMENT_IDENTIFIERS[PASSWORD_INPUT])
 
     password.send_keys(password_input)
 
@@ -255,24 +318,25 @@ def enterUserCredentials(driver):
 
 
 def enterMFA(driver):
-  driver.find_element_by_class_name("css-1l2vicc").click()
+  driver.find_element_by_class_name(ELEMENT_IDENTIFIERS[MFA_SMS_BUTTON]).click()
   verification_code = input("Please input your 6 digit verification code: ")
 
   if verification_code:
 
-    verification_request = driver.find_element_by_name('response')
+    verification_request = driver.find_element_by_name(ELEMENT_IDENTIFIERS[MFA_PAGE_CODE_INPUT])
     verification_request.send_keys(verification_code)
 
-    driver.find_element_by_class_name("_2GHn41jUsfSSC9HmVWT-eg").click()
+    driver.find_element_by_class_name(ELEMENT_IDENTIFIERS[MFA_PAGE_CODE_SUBMIT_BUTTON]).click()
 
 
 
 def navigateToHistoryPage(driver):
   driver.get("https://www.robinhood.com/account/history")
 
-  WebDriverWait(driver, 50).until(EC.title_contains("Account"))
+  #TODO: remove this line, it's probably not needed
+  #WebDriverWait(driver, 50).until(EC.title_contains("Account"))
 
-  WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.CLASS_NAME, "rh-expandable-item-a32bb9ad")))
+  WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.CLASS_NAME, ELEMENT_IDENTIFIERS[HISTORY_PAGE])))
 
 
 
@@ -302,12 +366,12 @@ def scroll_down(driver):
 
 def gatherTransactions(driver):
   transactions = []
-  sections = driver.find_elements_by_class_name("_2wuDJhUh9lal-48SV5IIfk")
+  sections = driver.find_elements_by_class_name(ELEMENT_IDENTIFIERS[HISTORY_PAGE_TRANSACTION_SECTIONS])
 
   for section in sections:
     section_name = section.find_element_by_xpath(".//h2").get_attribute('textContent')
     if section_types["PENDING"] not in section_name:
-      section_transactions = section.find_elements_by_class_name("rh-expandable-item-a32bb9ad")
+      section_transactions = section.find_elements_by_class_name(ELEMENT_IDENTIFIERS[HISTORY_PAGE_TRANSACTION])
       transactions.extend(section_transactions)
   return transactions
 
@@ -325,7 +389,7 @@ def parseTransactions(driver, transactions):
 
   for transaction in transactions:
 
-    header_text = transaction.find_element_by_xpath(".//div[@class='_2VPzNpwfga_8Mcn-DCUwug']").text
+    header_text = transaction.find_element_by_class_name(ELEMENT_IDENTIFIERS[HISTORY_PAGE_TRANSACTION_HEADER_TEXT]).text
 
     canceled_text = transaction.find_element_by_xpath(".//div[@class='_22YwnO0XVSevsIC6rD9HS3']").text
 
@@ -369,7 +433,7 @@ def parseTransactions(driver, transactions):
 
     transaction = transaction_with_date[0]
 
-    header_text = transaction.find_element_by_xpath(".//div[@class='_2VPzNpwfga_8Mcn-DCUwug']").text
+    header_text = transaction.find_element_by_class_name(ELEMENT_IDENTIFIERS[HISTORY_PAGE_TRANSACTION_HEADER_TEXT]).text
 
     canceled_text = transaction.find_element_by_xpath(".//div[@class='_22YwnO0XVSevsIC6rD9HS3']").text
 
@@ -522,7 +586,7 @@ def parseTransactions(driver, transactions):
 
     navigateToStock(driver, ticker)
 
-    company_name = driver.find_element_by_xpath("//header[@class='Jo5RGrWjFiX_iyW3gMLsy']/h1[1]").text
+    company_name = driver.find_element_by_xpath(ELEMENT_IDENTIFIERS[STOCK_PAGE_COMPANY_NAME]).text
 
     if company_name not in company_name_dict.keys():
       company_name_dict[company_name] = ticker
