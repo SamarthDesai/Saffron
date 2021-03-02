@@ -19,7 +19,7 @@ def getGains(transaction_arr, current_price, method="FIFO"):
 
 
 
-
+#TODO: this method is out of date. Doesn't accomodate dividends, free stocks, etc.
 def getAverageCostGains(transaction_arr, current_price):
   stock_quantity_held = 0
   stock_revenue_total = 0
@@ -28,7 +28,7 @@ def getAverageCostGains(transaction_arr, current_price):
   stock_average_price_bought = float(0)
 
   for transaction in transaction_arr:
-    if transaction.type == "buy":
+    if transaction.type == "Buy":
       stock_quantity_held += transaction.quantity
       stock_cost_total += (transaction.quantity*transaction.price)
       stock_average_price_bought = stock_cost_total/stock_quantity_held
@@ -100,4 +100,7 @@ def determineFIFOGain(held_shares_queue, sell_price, sell_quantity):
       oldest_shares.quantity -= sold_shares_quantity
       held_shares_queue.appendleft(oldest_shares)
   return gain
+
+
+
 

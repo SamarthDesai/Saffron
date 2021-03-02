@@ -3,16 +3,19 @@ from app.Functions import consolidate_data
 from app.Classes import TransactionStore as ts
 from app.Robinhood import scraper
 import yfinance as yf
-'''
-transactions = consolidate_data.getTransactions()
-stocks = consolidate_data.getStockInfo()
+from app.Functions import XIRR
+from app.Classes import CurrentPositionStore as curr_pos_store
+from app.Classes import CurrentPosition as curr_pos
 
-for stock in transactions.keys():
-  arr = gains.getGains(transactions[stock], stocks[stock]['current_price'], method="AVERAGE_COST")
-  print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[3]}")
-  arr = gains.getGains(transactions[stock], stocks[stock]['current_price'], method="FIFO")
-  print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
-'''
+
+
+
+
+transactions_store = ts.TransactionStore()
+current_positions_store = curr_pos_store.CurrentPositionStore()
+transactions_arr = scraper.getRHData()
+current_stock_prices = {}
+
 
 def getCurrentPrice(ticker):
   stock_current_price = float(0)
@@ -23,11 +26,11 @@ def getCurrentPrice(ticker):
       stock_current_price = float(stock_current_info['open'])
   except:
     pass
-
+  current_stock_prices[ticker] = stock_current_price
   return stock_current_price
 
-transactions_store = ts.TransactionStore()
-transactions_arr = scraper.getRHData()
+
+
 
 for transaction in transactions_arr:
   print(transaction.type, transaction.ticker, transaction.quantity, " @ ", transaction.price, " on ", transaction.date)
@@ -38,36 +41,30 @@ index = 0
 total_realized_gains = float(0)
 total_unrealized_gains = float(0)
 for stock in transactions_store.transactions_dict.keys():
-
-  #arr = gains.getGains(transactions_store.transactions_dict[stock], 1000, method="AVERAGE_COST")
-  #print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[3]}")
   try:
+
     stock_current_price = getCurrentPrice(stock)
     arr = gains.getGains(transactions_store.transactions_dict[stock], stock_current_price)
+    current_position = curr_pos.CurrentPosition(stock, arr[1])
+    current_positions_store.addCurrentPosition(current_position)
     total_realized_gains += float(arr[0])
     total_unrealized_gains += float(arr[2])
-    print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
+    realized_xirr = XIRR.XIRR_Calc(transactions_store.transactions_dict[stock])
 
+    print(f"{stock} \n realized gains: {arr[0]} \n realized irr: {realized_xirr} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
   except:
     continue
+
+
 total_gains = total_realized_gains + total_unrealized_gains
 print("Total Realized Gains: ", total_realized_gains, "Total Unrealized Gains: ", total_unrealized_gains, "Total Gains: ", total_gains)
-'''
-for i in range(50):
-  print("\n")
+total_realized_irr = XIRR.XIRR(transactions_arr)
+print("Total Realized IRR: ", total_realized_irr)
 
-for transaction in transactions_arr:
-  ticker, transaction_type, quantity, price, total_value, transaction_date = transaction
-  transactions_store.addTransaction(ticker, transaction_type, quantity, price, total_value, transaction_date)
+total_irr = XIRR.XIRR(transactions_arr, current_positions_store.current_position_dict, 
+  transactions_store.transactions_dict.keys(), current_stock_prices)
 
-
-for stock in transactions_store.transactions_dict.keys():
-  #arr = gains.getGains(transactions_store.transactions_dict[stock], 1000, method="AVERAGE_COST")
-  #print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[3]}")
-  arr = gains.getGains(transactions_store.transactions_dict[stock], 1000)
-  print(f"{stock} \n realized gains: {arr[0]} \n remaining shares: {arr[1]} \n unrealized gains: {arr[2]}")
-'''
-
+print(total_irr, " is the total irr")
 
 
 
